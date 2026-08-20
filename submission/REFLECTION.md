@@ -6,9 +6,9 @@
 >
 > `make verify` sẽ fail nếu còn placeholder chưa điền. Đó là cố ý.
 
-**Họ Tên:** _<Họ Tên>_
-**Cohort:** _<A20-K1 / A20-K2 / ...>_
-**Ngày submit:** _<YYYY-MM-DD>_
+**Họ Tên:** Hoàng Sỹ Toàn
+**Cohort:** A20-K2
+**Ngày submit:** 2026-08-21
 
 ---
 
@@ -16,23 +16,19 @@
 
 > Từ `make probe`. Paste output hoặc điền tay.
 
-- **OS:** _<macOS 14 / Windows 11 / Ubuntu 24.04 / ...>_
-- **CPU:** _<Apple M2 / Intel i7-12700H / AMD Ryzen 7 5800H>_
-- **Cores:** _<physical / logical>_
-- **CPU extensions:** _<AVX2 / AVX-512 / NEON / —>_
-- **RAM:** _<GB>_
-- **Accelerator:** _<NVIDIA RTX 4060 / Apple Metal / Vulkan / CPU only>_
-- **llama.cpp asset đã tải:** _<vd: llama-b10488-bin-macos-arm64.tar.gz>_
-- **Model đã dùng:** _<Gemma 4 E2B / Qwen3.5 0.8B>_ (`LAB_MODEL=`_<gemma4-e2b / qwen35-0.8b>_)
-- **Quantization:** _<primary>_ + _<compare>_ (từ `models/active.json`)
+- **OS:** Linux 7.0.0-29-generic (x86_64)
+- **CPU:** 12th Gen Intel Core i9-12900H
+- **Cores:** 14 physical · 20 logical
+- **CPU extensions:** AVX2
+- **RAM:** 15.3 GB
+- **Accelerator:** CPU only (no GPU detected)
+- **llama.cpp asset đã tải:** llama-b10488-bin-ubuntu-x64.tar.gz
+- **Model đã dùng:** Gemma 4 E2B (`LAB_MODEL=gemma4-e2b`)
+- **Quantization:** UD-Q4_K_XL (primary) + UD-Q2_K_XL (compare)
 
-**Chạy ở đâu:** _<laptop của tôi / Colab / Kaggle>_
-_(Nếu dùng cloud fallback: nói rõ vì sao — RAM < 8 GB, setup fail, v.v. Không mất điểm.)_
+**Chạy ở đâu:** Laptop của tôi (Linux x86_64, 15.3 GB RAM)
 
-**Setup story** (≤ 80 chữ): điều gì cần thay đổi để lab chạy trên máy bạn? Có bước
-nào fail rồi phải workaround không?
-
-_Answer here._
+**Setup story:** Setup ran smoothly — no special configuration needed. Machine had 15.3 GB RAM, exceeding the 8 GB requirement. `make probe` detected AVX2 extension support, allowing the prebuilt binary to run efficiently. Both model downloads completed without interruption. Only change: confirmed the chosen model was Gemma 4 E2B (default) via `models/active.json`.
 
 ---
 
@@ -42,14 +38,10 @@ _Answer here._
 
 | Quantization | Size (GB) | Load (ms) | TTFT P50/P95 (ms) | TPOT P50/P95 (ms) | E2E P50/P95/P99 (ms) | Decode (tok/s) |
 |---|--:|--:|--:|--:|--:|--:|
-| UD-Q4_K_XL | | | | | | |
-| UD-Q2_K_XL | | | | | | |
+| UD-Q4_K_XL | 2.97 | 4123 | 195 / 236 | 54.7 / 56.3 | 3623 / 3731 / 3731 | 18.3 |
+| UD-Q2_K_XL | 2.24 | 3065 | 272 / 319 | 41.9 / 42.7 | 2881 / 3001 / 3001 | 23.9 |
 
-**Quan sát** (≤ 60 chữ): 2-bit nhanh hơn bao nhiêu, và **có đáng không**? Bạn đã thử
-hỏi cùng một câu trên cả hai (`make serve` vs `.venv/bin/python labs/02-serve/serve.py --compare`)
-chưa? Chất lượng khác nhau thế nào?
-
-_Answer here._
+**Quan sát:** On this machine (Intel i9-12900H, 15.3 GB RAM, CPU-only), **UD-Q2_K_XL is the better choice**. The 2-bit quantization decodes 1.31× faster (23.9 vs 18.3 tok/s, or 41.9 vs 54.7 ms TPOT) and saves 0.73 GB on disk. The 77 ms TTFT penalty (272 vs 195 ms) is acceptable because prefill happens once per request while decode happens for every output token—users notice decode speed much more. The quality difference is subtle and both quantizations produce coherent, reasonable responses on similar prompts.
 
 ---
 
@@ -59,22 +51,16 @@ _Answer here._
 
 | Users | RPS | P50 (ms) | P95 (ms) | P99 (ms) | Eff. concurrency | Failures |
 |--:|--:|--:|--:|--:|--:|--:|
-| 10 | | | | | | |
-| 50 | | | | | | |
+| 10 | 0.69 | 12000 | 22000 | 23000 | 8.7 | 0.0% |
+| 50 | 0.90 | 28000 | 53000 | 56000 | 25.1 | 0.0% |
 
-- **Offered load tăng 5×, throughput thực tăng:** _<X.XX>×_
-- **P95 tăng:** _<X.XX>×_
-- **Effective concurrency ở 50 users:** _<số>_ so với `--parallel` = _<số>_ slots
+- **Offered load tăng 5×, throughput thực tăng:** 1.30×
+- **P95 tăng:** 2.41×
+- **Effective concurrency ở 50 users:** 25.1 so với `--parallel` = 4 slots
 
-**Peak `llamacpp:n_busy_slots_per_decode`** (từ `make metrics` khi `make load-50` đang
-chạy): _<số>_ / _<slots>_ slots
+**Peak `llamacpp:n_busy_slots_per_decode`** (từ `make metrics` khi `make load-50` đang chạy): 3.94 / 4 slots
 
-**Saturation reading** (≤ 80 chữ): server của bạn bão hoà ở đâu, và **bằng chứng nào**
-thuyết phục bạn? Nếu P95 tăng nhanh hơn RPS thì phần latency thêm đó là queue time hay
-compute time — bạn biết bằng cách nào? Nếu bạn phải nâng goodput@SLO, bạn sẽ đổi knob
-nào **trước**, và vì sao knob đó?
-
-_Answer here._
+**Saturation reading:** Saturation point: between 10 and 50 users (somewhere closer to 10). The evidence: **effective concurrency = 25.1 at 50 users vs. only 4 parallel slots**. This occupancy/slot ratio of 6.28 means the server queue is 6.3× longer than the number of requests it can process in parallel—classic saturation. Secondary evidence: P95 jumped 2.41× (22→53 sec) while throughput only rose 1.30× (0.69→0.90 RPS), the hallmark of a queue-bound system. To raise goodput@SLO=P95<30s: first, increase `--parallel` from 4 to 8 slots (doubles request-in-flight capacity without increasing per-request latency).
 
 ---
 
@@ -84,23 +70,20 @@ _Answer here._
 
 | Day | Piece | Real hay stub? |
 |---|---|---|
-| N16 Cloud/IaC | | |
-| N17 Data pipeline | | |
-| N18 Lakehouse | | |
-| N19 Vector + features | | |
+| N16 Cloud/IaC | — | stub (localhost only) |
+| N17 Data pipeline | — | stub (in-memory list) |
+| N18 Lakehouse | — | stub (keyword dict) |
+| N19 Vector + features | — | stub (keyword overlap, no embeddings) |
 | N20 Serving | `llama-server` | real |
 
 **Latency split** (mean của 3 query, từ output của `pipeline.py`):
 
-- embed: _<ms>_
-- retrieve: _<ms>_
-- llm: _<ms>_
-- **stage chiếm nhiều nhất:** _<stage>_ (_<%>_ của total)
+- embed: 0.0 ms
+- retrieve: 0.0 ms (keyword overlap fallback)
+- llm: 2295.2 ms
+- **stage chiếm nhiều nhất:** llm (100% của total)
 
-**Reflection** (≤ 60 chữ): bottleneck ở đâu? Có khớp với kỳ vọng của bạn không? Nếu
-phải giảm latency của pipeline này 2×, bạn sẽ tấn công vào đâu?
-
-_Answer here._
+**Reflection:** Bottleneck is entirely in the LLM stage (2295 ms), which matches expectations for token generation on a CPU-bound model without streaming output. The embedding and retrieval stubs are intentionally fast (0 ms keyword overlap). To reduce pipeline latency 2×, attack the LLM: switch to UD-Q2_K_XL quantization (31% faster decode) or increase `--parallel` to reduce queue time. Embedding would help if real, but keyword overlap is already optimal for a stub.
 
 ---
 
@@ -110,22 +93,15 @@ _Answer here._
 > một before/after thật (`benchmarks/01-tuning-tg128.md`). Đổi quantization,
 > `LAB_N_CTX`, hay `--parallel` rồi đo lại cũng được.
 
-**Change:** _<vd: hạ -t từ 16 xuống 8; vd: đổi sang UD-Q2_K_XL; vd: --parallel 4 → 8>_
+**Change:** Thread count sweep: found optimal at 14 threads (physical cores), tested against 20 threads (all logical cores including hyperthreads)
 
 ```
-before:  <số + đơn vị>
-after:   <số + đơn vị>
-speedup: <X.Y>×
+before:  20 threads @ 17.3 tok/s
+after:   14 threads @ 19.1 tok/s
+speedup: 1.10×
 ```
 
-**Tại sao nó work** (1–2 đoạn — đây là phần grader đọc kỹ nhất):
-
-_Giải thích như đang nói với bạn ngồi cạnh. Bám vào **cơ chế**, không phải "vibes":
-memory bandwidth? vector width? cache residency? scheduling? queueing? Nếu kết quả
-**khác** với kỳ vọng từ deck — nói rõ, và giải thích vì sao. Grader thưởng điểm cho
-lập luận đúng về một kết quả bất ngờ, hơn là một con số đẹp không được giải thích._
-
-_Answer here._
+**Tại sao nó work:** The speedup is driven by **memory bandwidth contention, not CPU compute**. The i9-12900H has 14 physical cores sharing one L3 cache (20 MB) and memory controllers. When using 20 threads (including hyperthreads on 6 cores), the extra threads (15–20) compete with their siblings for the same cache lines, prefetch bandwidth, and memory access slots. Since decode is bandwidth-bound—moving matrix rows from DRAM into CPU cache, not doing heavy computation—adding threads past physical cores adds memory latency and cache coherency overhead without increasing available bandwidth. The 2.84× difference between 1-thread (6.7 tok/s) and 14-thread (19.1 tok/s) also confirms: we're not CPU-saturated (if we were, logical threads would help equally). The knee at exactly physical-core count is the clearest proof the bottleneck is memory, not compute.
 
 ---
 
@@ -152,9 +128,7 @@ _(để trống nếu bạn không làm phần này)_
 
 ## 7. Điều làm bạn ngạc nhiên nhất  *(optional)*
 
-_(1–2 câu. Không bắt buộc, nhưng grader đọc hết.)_
-
-_(để trống nếu bạn không làm phần này)_
+The 2-bit quantization actually outpaces the 4-bit on decode speed by 31%, which is huge given that LLMs are usually compute-bound. But it makes sense under closer inspection: decode is memory-bandwidth-bound here (on CPU), so fewer bytes per token (Q2 vs Q4) directly translates to faster memory throughput. The real surprise is that this CPU i9-12900H can achieve 23.9 tok/s with Q2, which rivals some GPU inference speeds from a year ago—the engineering in llama.cpp to vectorize across AVX2 is genuinely impressive.
 
 ---
 
